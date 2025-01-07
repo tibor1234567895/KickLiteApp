@@ -35,7 +35,18 @@ export default function FollowedScreen() {
         followedChannels.map((username) => getChannelInfo(username))
       );
       console.log('Fetched channel details:', channelDetails);
-      setChannels(channelDetails);
+      
+      // Sort channels: online first, then offline
+      const sortedChannels = channelDetails.sort((a, b) => {
+        // If both are online or both are offline, sort by viewer count
+        if (!!a.livestream === !!b.livestream) {
+          return (b.livestream?.viewer_count || 0) - (a.livestream?.viewer_count || 0);
+        }
+        // If only one is online, put it first
+        return a.livestream ? -1 : 1;
+      });
+
+      setChannels(sortedChannels);
     } catch (error) {
       setError('Failed to load followed channels');
       console.error('Error loading followed channels:', error);
@@ -57,14 +68,24 @@ export default function FollowedScreen() {
 
   const renderItem = ({ item }: { item: Channel }) => (
     <TouchableOpacity
-      style={[styles.item, { backgroundColor: colors.card }]}
+      style={[
+        styles.item,
+        { backgroundColor: colors.card },
+        item.livestream && styles.liveItem
+      ]}
       onPress={() => navigation.navigate('Stream', { username: item.user.username })}
     >
       <Image
-        source={{ uri: item.user.profile_pic }}
-        style={styles.profilePic}
+        source={{ uri: item.livestream ? item.livestream.thumbnail.url : item.user.profile_pic }}
+        style={[
+          item.livestream ? styles.thumbnail : styles.profilePic,
+          !item.livestream && styles.offlineImage
+        ]}
       />
-      <View style={styles.itemContent}>
+      <View style={[
+        styles.itemContent,
+        !item.livestream && styles.offlineContent
+      ]}>
         <Text style={[styles.username, { color: colors.text }]}>
           {item.user.username}
         </Text>
@@ -74,7 +95,7 @@ export default function FollowedScreen() {
               {item.livestream.session_title}
             </Text>
             <Text style={[styles.viewers, { color: colors.tertiaryText }]}>
-              {item.livestream.viewer_count} viewers
+              {item.livestream.viewer_count.toLocaleString()} viewers
             </Text>
           </View>
         ) : (
@@ -153,14 +174,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
+  liveItem: {
+    flexDirection: 'column',
+  },
   profilePic: {
     width: 50,
     height: 50,
     borderRadius: 25,
   },
+  thumbnail: {
+    width: '100%',
+    height: 180,
+    borderRadius: 4,
+  },
+  offlineImage: {
+    marginRight: 10,
+  },
   itemContent: {
-    marginLeft: 10,
     flex: 1,
+    marginTop: 8,
+  },
+  offlineContent: {
+    marginTop: 0,
+    marginLeft: 10,
   },
   username: {
     fontSize: 16,
