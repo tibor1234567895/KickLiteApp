@@ -6,6 +6,7 @@ import type { RouteProp } from '@react-navigation/native';
 import HomeScreen from './src/screens/HomeScreen';
 import StreamScreen from './src/screens/StreamScreen';
 import FollowedScreen from './src/screens/FollowedScreen';
+import SearchScreen from './src/screens/SearchScreen';
 import { FollowProvider } from './src/context/FollowContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { RootStackParamList } from './src/types';
@@ -17,6 +18,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 
 type TabParamList = {
   Home: undefined;
+  Search: undefined;
   Followed: undefined;
 };
 
@@ -31,6 +33,8 @@ function HomeTabs() {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Search') {
+            iconName = focused ? 'search' : 'search-outline';
           } else if (route.name === 'Followed') {
             iconName = focused ? 'heart' : 'heart-outline';
           }
@@ -64,6 +68,7 @@ function HomeTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Followed" component={FollowedScreen} />
     </Tab.Navigator>
   );

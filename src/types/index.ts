@@ -64,4 +64,5 @@ export type RootStackParamList = {
   Home: undefined;
   Stream: { username: string };
   Followed: undefined;
+  Search: undefined;
 }; 
