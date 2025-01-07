@@ -11,17 +11,13 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
-import { Ionicons } from '@expo/vector-icons';
-import { useFollow } from '../context/FollowContext';
 import { useTheme } from '../context/ThemeContext';
-import { getChannelInfo } from '../services/api';
 import { Channel, RootStackParamList, LivestreamItem } from '../types';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const { isFollowing, toggleFollow } = useFollow();
   const { colors } = useTheme();
   const [streams, setStreams] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,21 +102,9 @@ export default function HomeScreen() {
         style={styles.thumbnail}
       />
       <View style={styles.itemContent}>
-        <View style={styles.header}>
-          <Text style={[styles.username, { color: colors.text }]}>
-            {item.user.username}
-          </Text>
-          <TouchableOpacity
-            style={styles.followButton}
-            onPress={() => toggleFollow(item.user.username)}
-          >
-            <Ionicons
-              name={isFollowing(item.user.username) ? 'heart' : 'heart-outline'}
-              size={24}
-              color={isFollowing(item.user.username) ? colors.heart : colors.heartOutline}
-            />
-          </TouchableOpacity>
-        </View>
+        <Text style={[styles.username, { color: colors.text }]}>
+          {item.user.username}
+        </Text>
         {item.livestream && (
           <View>
             <Text style={[styles.title, { color: colors.secondaryText }]}>
@@ -215,18 +199,9 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
   username: {
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  followButton: {
-    padding: 4,
   },
   title: {
     fontSize: 14,
