@@ -80,3 +80,6 @@ coverage/
 
 # Testing Data
 example.json
+
+# Documentation
+DOCUMENTATION.md

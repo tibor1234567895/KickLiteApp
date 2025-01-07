@@ -1,3 +1,33 @@
+export interface LivestreamsResponse {
+  data: LivestreamItem[];
+  first_page_url: string;
+  from: number;
+  next_page_url: string | null;
+  path: string;
+  per_page: number;
+  prev_page_url: string | null;
+  to: number;
+}
+
+export interface LivestreamItem {
+  id: number;
+  slug: string;
+  channel_id: number;
+  created_at: string;
+  session_title: string;
+  is_live: boolean;
+  risk_level_id: number | null;
+  start_time: string;
+  viewer_count: number;
+  language: string;
+  is_mature: boolean;
+  thumbnail: {
+    srcset: string;
+    src: string;
+  };
+  channel: Channel;
+}
+
 export interface Channel {
   id: number;
   user_id: number;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { Video } from 'expo-av';
+import { Video, ResizeMode } from 'expo-av';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { getChannelInfo } from '../services/api';
 import type { Channel } from '../types';
@@ -65,7 +65,7 @@ export default function StreamScreen() {
         rate={1.0}
         volume={1.0}
         isMuted={false}
-        resizeMode="contain"
+        resizeMode={ResizeMode.CONTAIN}
         shouldPlay
         style={styles.video}
       />
