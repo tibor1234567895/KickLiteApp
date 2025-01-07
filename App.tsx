@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { RouteProp } from '@react-navigation/native';
@@ -7,8 +7,10 @@ import HomeScreen from './src/screens/HomeScreen';
 import StreamScreen from './src/screens/StreamScreen';
 import FollowedScreen from './src/screens/FollowedScreen';
 import { FollowProvider } from './src/context/FollowContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { RootStackParamList } from './src/types';
 import { Ionicons } from '@expo/vector-icons';
+import { TouchableOpacity } from 'react-native';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -19,6 +21,8 @@ type TabParamList = {
 };
 
 function HomeTabs() {
+  const { theme, colors, toggleTheme } = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -33,6 +37,30 @@ function HomeTabs() {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.secondaryText,
+        headerStyle: {
+          backgroundColor: colors.card,
+          borderBottomColor: colors.border,
+          shadowColor: colors.shadow,
+        },
+        headerTintColor: colors.text,
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={toggleTheme}
+            style={{ marginRight: 15 }}
+          >
+            <Ionicons
+              name={theme === 'light' ? 'moon' : 'sunny'}
+              size={24}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        ),
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
@@ -41,25 +69,41 @@ function HomeTabs() {
   );
 }
 
+function AppContent() {
+  const { colors } = useTheme();
+
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="Home"
+        component={HomeTabs}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Stream"
+        component={StreamScreen}
+        options={({ route }) => ({
+          title: route.params.username,
+          headerStyle: {
+            backgroundColor: colors.card,
+            borderBottomColor: colors.border,
+            shadowColor: colors.shadow,
+          },
+          headerTintColor: colors.text,
+        })}
+      />
+    </Stack.Navigator>
+  );
+}
+
 export default function App() {
   return (
-    <NavigationContainer>
-      <FollowProvider>
-        <Stack.Navigator>
-          <Stack.Screen
-            name="Home"
-            component={HomeTabs}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Stream"
-            component={StreamScreen}
-            options={({ route }) => ({
-              title: route.params.username,
-            })}
-          />
-        </Stack.Navigator>
-      </FollowProvider>
-    </NavigationContainer>
+    <ThemeProvider>
+      <NavigationContainer>
+        <FollowProvider>
+          <AppContent />
+        </FollowProvider>
+      </NavigationContainer>
+    </ThemeProvider>
   );
 }

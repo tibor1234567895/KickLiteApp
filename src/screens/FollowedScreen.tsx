@@ -10,6 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useFollow } from '../context/FollowContext';
+import { useTheme } from '../context/ThemeContext';
 import { getChannelInfo } from '../services/api';
 import { Channel, RootStackParamList } from '../types';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +21,7 @@ type FollowedScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Fol
 export default function FollowedScreen() {
   const navigation = useNavigation<FollowedScreenNavigationProp>();
   const { followedChannels } = useFollow();
+  const { colors } = useTheme();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -55,7 +57,7 @@ export default function FollowedScreen() {
 
   const renderItem = ({ item }: { item: Channel }) => (
     <TouchableOpacity
-      style={styles.item}
+      style={[styles.item, { backgroundColor: colors.card }]}
       onPress={() => navigation.navigate('Stream', { username: item.user.username })}
     >
       <Image
@@ -63,16 +65,20 @@ export default function FollowedScreen() {
         style={styles.profilePic}
       />
       <View style={styles.itemContent}>
-        <Text style={styles.username}>{item.user.username}</Text>
+        <Text style={[styles.username, { color: colors.text }]}>
+          {item.user.username}
+        </Text>
         {item.livestream ? (
           <View>
-            <Text style={styles.title}>{item.livestream.session_title}</Text>
-            <Text style={styles.viewers}>
+            <Text style={[styles.title, { color: colors.secondaryText }]}>
+              {item.livestream.session_title}
+            </Text>
+            <Text style={[styles.viewers, { color: colors.tertiaryText }]}>
               {item.livestream.viewer_count} viewers
             </Text>
           </View>
         ) : (
-          <Text style={styles.offline}>Offline</Text>
+          <Text style={[styles.offline, { color: colors.offline }]}>Offline</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -80,17 +86,20 @@ export default function FollowedScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#0000ff" />
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.error}>{error}</Text>
-        <TouchableOpacity onPress={loadChannels} style={styles.retryButton}>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
+        <TouchableOpacity
+          onPress={loadChannels}
+          style={[styles.retryButton, { backgroundColor: colors.primary }]}
+        >
           <Text style={styles.retryText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -99,37 +108,47 @@ export default function FollowedScreen() {
 
   if (channels.length === 0) {
     return (
-      <View style={styles.centered}>
-        <Text>You haven't followed any channels yet</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={{ color: colors.secondaryText }}>
+          You haven't followed any channels yet
+        </Text>
       </View>
     );
   }
 
   return (
-    <FlatList
-      data={channels}
-      renderItem={renderItem}
-      keyExtractor={(item) => item.user.username}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-      contentContainerStyle={styles.list}
-    />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <FlatList
+        data={channels}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.user.username}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+        contentContainerStyle={styles.list}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   list: {
     padding: 10,
   },
   item: {
     flexDirection: 'row',
     padding: 10,
-    backgroundColor: '#fff',
     borderRadius: 8,
     marginBottom: 10,
     elevation: 2,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -149,17 +168,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 14,
-    color: '#666',
     marginTop: 4,
   },
   viewers: {
     fontSize: 12,
-    color: '#888',
     marginTop: 2,
   },
   offline: {
     fontSize: 14,
-    color: '#999',
     marginTop: 4,
   },
   centered: {
@@ -168,12 +184,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   error: {
-    color: 'red',
     marginBottom: 10,
   },
   retryButton: {
     padding: 10,
-    backgroundColor: '#0000ff',
     borderRadius: 5,
   },
   retryText: {
