@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../types';
 
@@ -99,16 +100,43 @@ export default function SearchScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.searchBar, { backgroundColor: colors.card }]}>
-        <TextInput
-          style={[styles.input, { color: colors.text }]}
-          placeholder="Search channels..."
-          placeholderTextColor={colors.tertiaryText}
-          value={searchQuery}
-          onChangeText={(text) => {
-            setSearchQuery(text);
-            searchChannels(text);
-          }}
-        />
+        <View style={[styles.searchInputContainer, { backgroundColor: colors.background }]}>
+          <Ionicons 
+            name="search" 
+            size={20} 
+            color={colors.tertiaryText}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={[styles.input, { color: colors.text }]}
+            placeholder="Search channels..."
+            placeholderTextColor={colors.tertiaryText}
+            value={searchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              searchChannels(text);
+            }}
+            returnKeyType="search"
+            autoFocus
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => {
+                setSearchQuery('');
+                setResults([]);
+              }}
+              style={styles.clearButton}
+            >
+              <Ionicons 
+                name="close-circle" 
+                size={20} 
+                color={colors.tertiaryText}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {loading ? (
@@ -143,15 +171,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   searchBar: {
-    padding: 10,
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
   input: {
-    height: 40,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    flex: 1,
     fontSize: 16,
+    paddingVertical: 8,
+  },
+  clearButton: {
+    padding: 4,
+    marginLeft: 8,
   },
   list: {
     padding: 10,

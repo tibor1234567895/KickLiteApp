@@ -1,8 +1,9 @@
 import React from 'react';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { TouchableOpacity, View } from 'react-native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { createStackNavigator, StackNavigationProp } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import type { RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from './src/screens/HomeScreen';
 import StreamScreen from './src/screens/StreamScreen';
 import FollowedScreen from './src/screens/FollowedScreen';
@@ -10,20 +11,18 @@ import SearchScreen from './src/screens/SearchScreen';
 import { FollowProvider } from './src/context/FollowContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { RootStackParamList } from './src/types';
-import { Ionicons } from '@expo/vector-icons';
-import { TouchableOpacity } from 'react-native';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 type TabParamList = {
   Home: undefined;
-  Search: undefined;
   Followed: undefined;
 };
 
 function HomeTabs() {
   const { theme, colors, toggleTheme } = useTheme();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   return (
     <Tab.Navigator
@@ -33,8 +32,6 @@ function HomeTabs() {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Search') {
-            iconName = focused ? 'search' : 'search-outline';
           } else if (route.name === 'Followed') {
             iconName = focused ? 'heart' : 'heart-outline';
           }
@@ -54,21 +51,47 @@ function HomeTabs() {
         },
         headerTintColor: colors.text,
         headerRight: () => (
-          <TouchableOpacity
-            onPress={toggleTheme}
-            style={{ marginRight: 15 }}
-          >
-            <Ionicons
-              name={theme === 'light' ? 'moon' : 'sunny'}
-              size={24}
-              color={colors.text}
-            />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row' }}>
+            <TouchableOpacity
+              onPress={toggleTheme}
+              style={{ marginRight: 15 }}
+            >
+              <Ionicons
+                name={theme === 'light' ? 'moon' : 'sunny'}
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
         ),
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen}
+        options={{
+          headerRight: () => (
+            <View style={{ flexDirection: 'row' }}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Search')}
+                style={{ marginRight: 15 }}
+              >
+                <Ionicons name="search" size={24} color={colors.text} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={toggleTheme}
+                style={{ marginRight: 15 }}
+              >
+                <Ionicons
+                  name={theme === 'light' ? 'moon' : 'sunny'}
+                  size={24}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+            </View>
+          ),
+        }}
+      />
       <Tab.Screen name="Followed" component={FollowedScreen} />
     </Tab.Navigator>
   );
@@ -96,6 +119,18 @@ function AppContent() {
           },
           headerTintColor: colors.text,
         })}
+      />
+      <Stack.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{
+          headerStyle: {
+            backgroundColor: colors.card,
+            borderBottomColor: colors.border,
+            shadowColor: colors.shadow,
+          },
+          headerTintColor: colors.text,
+        }}
       />
     </Stack.Navigator>
   );
