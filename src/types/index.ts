@@ -58,4 +58,10 @@ export interface ApiResponse {
   success: boolean;
   error?: string;
   data?: Channel;
-} 
+}
+
+export type RootStackParamList = {
+  Home: undefined;
+  Stream: { username: string };
+  Followed: undefined;
+}; 
