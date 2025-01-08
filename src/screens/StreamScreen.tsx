@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Dimensions, TouchableOpacity } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Dimensions, TouchableOpacity, AppState, Platform } from 'react-native';
+import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { getChannelInfo } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import { useFollow } from '../context/FollowContext';
@@ -24,9 +25,30 @@ export default function StreamScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isChatVisible, setIsChatVisible] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const videoRef = useRef<Video>(null);
 
   useEffect(() => {
     loadChannel();
+
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        // Enable PiP when app goes to background if video is playing
+        if (Platform.OS === 'ios') {
+          videoRef.current?.presentFullscreenPlayer();
+        }
+      }
+    });
+
+    // Lock to portrait by default
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+
+    return () => {
+      subscription.remove();
+      videoRef.current?.pauseAsync();
+      // Reset orientation when component unmounts
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    };
   }, []);
 
   useEffect(() => {
@@ -59,6 +81,19 @@ export default function StreamScreen() {
       });
     }
   }, [channel, isFollowing, colors, isChatVisible]);
+
+  const handleFullscreenUpdate = async ({ fullscreenUpdate }: { fullscreenUpdate: number }) => {
+    switch (fullscreenUpdate) {
+      case 1: // Video.FULLSCREEN_UPDATE_PLAYER_WILL_PRESENT
+        setIsFullscreen(true);
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+        break;
+      case 3: // Video.FULLSCREEN_UPDATE_PLAYER_WILL_DISMISS
+        setIsFullscreen(false);
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        break;
+    }
+  };
 
   const loadChannel = async () => {
     try {
@@ -100,6 +135,7 @@ export default function StreamScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Video
+        ref={videoRef}
         source={{ uri: channel.playback_url }}
         rate={1.0}
         volume={1.0}
@@ -107,35 +143,44 @@ export default function StreamScreen() {
         resizeMode={ResizeMode.CONTAIN}
         shouldPlay
         useNativeControls
+        onFullscreenUpdate={handleFullscreenUpdate}
         style={[
           styles.video,
-          !isChatVisible && { height: height - 150 } // Increase video height when chat is hidden
+          !isChatVisible && { height: height - 150 }
         ]}
+        isLooping={false}
+        usePoster
+        posterSource={{ uri: channel.livestream.thumbnail.url }}
+        posterStyle={styles.poster}
       />
-      <View style={[
-        styles.infoContainer,
-        !isChatVisible && { flex: 1 }
-      ]}>
-        <Text style={[styles.title, { color: colors.text }]}>
-          {channel.livestream.session_title}
-        </Text>
-        <Text style={[styles.viewerCount, { color: colors.tertiaryText }]}>
-          {channel.livestream.viewer_count.toLocaleString()} viewers
-        </Text>
-      </View>
-      {isChatVisible && (
-        <View style={styles.chatContainer}>
-          <WebView
-            source={{ uri: `https://kick.com/${route.params.username}/chatroom` }}
-            style={styles.webview}
-            startInLoadingState={true}
-            renderLoading={() => (
-              <View style={[styles.webviewLoader, { backgroundColor: colors.background }]}>
-                <ActivityIndicator size="large" color={colors.primary} />
-              </View>
-            )}
-          />
-        </View>
+      {!isFullscreen && (
+        <>
+          <View style={[
+            styles.infoContainer,
+            !isChatVisible && { flex: 1 }
+          ]}>
+            <Text style={[styles.title, { color: colors.text }]}>
+              {channel.livestream.session_title}
+            </Text>
+            <Text style={[styles.viewerCount, { color: colors.tertiaryText }]}>
+              {channel.livestream.viewer_count.toLocaleString()} viewers
+            </Text>
+          </View>
+          {isChatVisible && (
+            <View style={styles.chatContainer}>
+              <WebView
+                source={{ uri: `https://kick.com/${route.params.username}/chatroom` }}
+                style={styles.webview}
+                startInLoadingState={true}
+                renderLoading={() => (
+                  <View style={[styles.webviewLoader, { backgroundColor: colors.background }]}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                  </View>
+                )}
+              />
+            </View>
+          )}
+        </>
       )}
     </View>
   );
@@ -148,6 +193,9 @@ const styles = StyleSheet.create({
   video: {
     width: width,
     height: VIDEO_HEIGHT,
+  },
+  poster: {
+    resizeMode: 'cover',
   },
   infoContainer: {
     padding: 16,
