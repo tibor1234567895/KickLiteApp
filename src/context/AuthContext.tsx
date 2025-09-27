@@ -35,6 +35,8 @@ interface AuthContextValue {
   tokens: AuthTokens | null;
   profile: KickUserProfile | null;
   loading: boolean;
+  bootstrapping: boolean;
+  authPending: boolean;
   error: string | null;
   isAuthenticated: boolean;
   signIn: () => Promise<void>;
@@ -102,10 +104,13 @@ const resolveExpiry = (expiresIn: unknown, fallback?: number) => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [profile, setProfile] = useState<KickUserProfile | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [bootstrapping, setBootstrapping] = useState<boolean>(true);
+  const [authPending, setAuthPending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingState = useRef<string | null>(null);
+
+  const loading = bootstrapping || authPending;
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimer.current) {
@@ -131,23 +136,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     []
   );
 
-  const signOut = useCallback(async (options?: SignOutOptions) => {
-    setLoading(true);
-    if (!options?.preserveError) {
-      setError(null);
-    }
-    clearRefreshTimer();
-    try {
-      setTokens(null);
-      setProfile(null);
-      configureAuthToken(null);
-      await AsyncStorage.multiRemove([TOKEN_STORAGE_KEY, PROFILE_STORAGE_KEY]);
-    } catch (storageError) {
-      console.error('Failed to sign out', storageError);
-    } finally {
-      setLoading(false);
-    }
-  }, [clearRefreshTimer]);
+  const signOut = useCallback(
+    async (options?: SignOutOptions) => {
+      setAuthPending(true);
+      if (!options?.preserveError) {
+        setError(null);
+      }
+      clearRefreshTimer();
+      try {
+        setTokens(null);
+        setProfile(null);
+        configureAuthToken(null);
+        await AsyncStorage.multiRemove([TOKEN_STORAGE_KEY, PROFILE_STORAGE_KEY]);
+      } catch (storageError) {
+        console.error('Failed to sign out', storageError);
+      } finally {
+        setAuthPending(false);
+      }
+    },
+    [clearRefreshTimer]
+  );
 
   const refreshAuthTokens = useCallback(
     async (
@@ -170,7 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!options?.silent) {
-        setLoading(true);
+        setAuthPending(true);
       }
 
       try {
@@ -210,7 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw refreshError;
       } finally {
         if (!options?.silent) {
-          setLoading(false);
+          setAuthPending(false);
         }
       }
     },
@@ -244,7 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setTokens(null);
         setProfile(null);
       } finally {
-        setLoading(false);
+        setBootstrapping(false);
       }
     };
 
@@ -281,7 +289,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    setLoading(true);
+    setAuthPending(true);
     setError(null);
 
     try {
@@ -317,7 +325,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (authResult.type === 'error' || authResult.type === 'dismiss') {
           setError(authResult.params?.error ?? 'Authentication was cancelled');
         }
-        setLoading(false);
         return;
       }
 
@@ -367,7 +374,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authError instanceof Error ? authError.message : 'An unknown authentication error occurred';
       setError(message);
     } finally {
-      setLoading(false);
+      setAuthPending(false);
       pendingState.current = null;
     }
   }, [persistSession]);
@@ -377,13 +384,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       tokens,
       profile,
       loading,
+      bootstrapping,
+      authPending,
       error,
       isAuthenticated: Boolean(tokens?.accessToken),
       signIn,
       signOut,
       refresh: () => refreshAuthTokens(undefined, undefined, { silent: false }),
     }),
-    [error, loading, profile, refreshAuthTokens, signIn, signOut, tokens]
+    [
+      authPending,
+      bootstrapping,
+      error,
+      loading,
+      profile,
+      refreshAuthTokens,
+      signIn,
+      signOut,
+      tokens,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
