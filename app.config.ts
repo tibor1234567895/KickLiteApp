@@ -11,10 +11,11 @@ const baseConfig: ExpoConfig = {
   experiments: {
     tsconfigPaths: true,
   },
-  plugins: [],
+  plugins: ['expo-font'],
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'light',
+  newArchEnabled: true,
   splash: {
     image: './assets/splash.png',
     resizeMode: 'contain',
@@ -23,6 +24,9 @@ const baseConfig: ExpoConfig = {
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: true,
+    infoPlist: {
+      UIBackgroundModes: ['audio', 'picture-in-picture'],
+    },
   },
   android: {
     package: 'com.kicklite.app',
@@ -31,7 +35,11 @@ const baseConfig: ExpoConfig = {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#ffffff',
     },
+    edgeToEdgeEnabled: true,
+    predictiveBackGestureEnabled: false,
     permissions: ['INTERNET'],
+    supportsPictureInPicture: true,
+    playbackCategory: 'playback',
   },
   extra: {
     eas: {
