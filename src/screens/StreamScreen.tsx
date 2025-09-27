@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
-import { Video, ResizeMode } from 'expo-av';
+import { Video, ResizeMode, type AVPlaybackStatus } from 'expo-av';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   AppState,
   Platform,
+  Alert,
 } from 'react-native';
 
 import ChatView from '../components/ChatView';
@@ -37,29 +38,69 @@ export default function StreamScreen() {
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const videoRef = useRef<Video>(null);
+  const [playbackStatus, setPlaybackStatus] = useState<AVPlaybackStatus | null>(null);
+
+  const requestPictureInPicture = useCallback(async () => {
+    if (!videoRef.current || !playbackStatus || !playbackStatus.isLoaded) {
+      return;
+    }
+
+    if (playbackStatus.isBuffering || !playbackStatus.isPlaying) {
+      return;
+    }
+
+    try {
+      if (typeof videoRef.current.presentPictureInPictureAsync !== 'function') {
+        throw new Error('Picture-in-Picture is not supported on this device.');
+      }
+
+      if (Platform.OS === 'ios') {
+        const versionNumber = Number.parseFloat(String(Platform.Version));
+        if (!Number.isNaN(versionNumber) && versionNumber < 14) {
+          throw new Error('Picture-in-Picture requires iOS 14 or later.');
+        }
+      }
+
+      if (Platform.OS === 'android') {
+        const androidVersion = Number(Platform.Version);
+        if (!Number.isNaN(androidVersion) && androidVersion < 26) {
+          throw new Error('Picture-in-Picture requires Android 8.0 (API 26) or later.');
+        }
+      }
+
+      await videoRef.current.presentPictureInPictureAsync();
+    } catch (pipError) {
+      const message =
+        pipError instanceof Error
+          ? pipError.message
+          : 'Picture-in-Picture is not supported on this device.';
+      Alert.alert('Unable to start Picture-in-Picture', message);
+    }
+  }, [playbackStatus]);
 
   useEffect(() => {
     loadChannel();
-
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'background' || nextAppState === 'inactive') {
-        // Enable PiP when app goes to background if video is playing
-        if (Platform.OS === 'ios') {
-          videoRef.current?.presentFullscreenPlayer();
-        }
-      }
-    });
-
     // Lock to portrait by default
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
 
     return () => {
-      subscription.remove();
       videoRef.current?.pauseAsync();
       // Reset orientation when component unmounts
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     };
   }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        requestPictureInPicture();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [requestPictureInPicture]);
 
   useEffect(() => {
     if (channel) {
@@ -151,6 +192,7 @@ export default function StreamScreen() {
         resizeMode={ResizeMode.CONTAIN}
         shouldPlay
         useNativeControls
+        onPlaybackStatusUpdate={setPlaybackStatus}
         onFullscreenUpdate={handleFullscreenUpdate}
         style={[styles.video, !isChatVisible && { height: height - 150 }]}
         isLooping={false}
