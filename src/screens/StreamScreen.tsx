@@ -39,6 +39,8 @@ export default function StreamScreen() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const videoRef = useRef<Video>(null);
   const previousAudioModeRef = useRef<Partial<AudioMode> | null>(null);
+  const isMountedRef = useRef(true);
+  const requestIdRef = useRef(0);
   const [playbackStatus, setPlaybackStatus] = useState<AVPlaybackStatus | null>(null);
   const [isAudioConfigured, setIsAudioConfigured] = useState(false);
 
@@ -125,13 +127,12 @@ export default function StreamScreen() {
   }, [playbackStatus]);
 
   useEffect(() => {
-    loadChannel();
-    // Lock to portrait by default
+    isMountedRef.current = true;
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
 
     return () => {
+      isMountedRef.current = false;
       videoRef.current?.pauseAsync();
-      // Reset orientation when component unmounts
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     };
   }, []);
@@ -175,7 +176,7 @@ export default function StreamScreen() {
         ),
       });
     }
-  }, [channel, isFollowing, colors, isChatVisible]);
+  }, [channel, colors, isChatVisible, isFollowing, navigation]);
 
   const handleFullscreenUpdate = async ({ fullscreenUpdate }: { fullscreenUpdate: number }) => {
     switch (fullscreenUpdate) {
@@ -190,18 +191,44 @@ export default function StreamScreen() {
     }
   };
 
-  const loadChannel = async () => {
+  const loadChannel = useCallback(async (username: string) => {
+    const requestId = ++requestIdRef.current;
+
+    if (!isMountedRef.current) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
     try {
-      const data = await getChannelInfo(route.params.username);
+      const data = await getChannelInfo(username);
+
+      if (!isMountedRef.current || requestId !== requestIdRef.current) {
+        return;
+      }
+
       setChannel(data);
       setError(null);
     } catch (err) {
+      if (!isMountedRef.current || requestId !== requestIdRef.current) {
+        return;
+      }
+
       setError(err instanceof Error ? err.message : 'Failed to load stream');
       setChannel(null);
     } finally {
+      if (!isMountedRef.current || requestId !== requestIdRef.current) {
+        return;
+      }
+
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadChannel(route.params.username);
+  }, [loadChannel, route.params.username]);
 
   if (loading) {
     return (
