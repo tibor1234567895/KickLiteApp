@@ -82,9 +82,23 @@ function HomeTabs() {
 
 function AppContent() {
   const { colors } = useTheme();
-  const { isAuthenticated, loading, tokens } = useAuth();
+  const { isAuthenticated, tokens, bootstrapping, authPending } = useAuth();
 
-  if (loading && (isAuthenticated || tokens)) {
+  if (bootstrapping) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.background,
+        }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (authPending && (isAuthenticated || tokens)) {
     return (
       <View
         style={{

@@ -5,8 +5,15 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 const LoginScreen: React.FC = () => {
-  const { signIn, loading, error } = useAuth();
+  const { signIn, authPending, bootstrapping, error } = useAuth();
   const { colors } = useTheme();
+
+  const isDisabled = bootstrapping || authPending;
+  const buttonLabel = bootstrapping
+    ? 'Preparing…'
+    : authPending
+      ? 'Connecting…'
+      : 'Continue with Kick';
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -22,18 +29,16 @@ const LoginScreen: React.FC = () => {
             styles.button,
             {
               backgroundColor: colors.primary,
-              opacity: loading || pressed ? 0.7 : 1,
+              opacity: isDisabled || pressed ? 0.7 : 1,
               borderColor: colors.border,
             },
           ]}
-          disabled={loading}
+          disabled={isDisabled}
           onPress={signIn}>
-          <Text style={[styles.buttonText, { color: '#ffffff' }]}>
-            {loading ? 'Connecting…' : 'Continue with Kick'}
-          </Text>
+          <Text style={[styles.buttonText, { color: '#ffffff' }]}>{buttonLabel}</Text>
         </Pressable>
 
-        {loading ? (
+        {authPending ? (
           <ActivityIndicator size="small" color={colors.primary} style={styles.activityIndicator} />
         ) : null}
       </View>
