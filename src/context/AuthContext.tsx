@@ -233,7 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (bootError) {
         console.error('Failed to restore session', bootError);
-        setError('Failed to restore session');
+        setError((current) => current ?? 'Failed to restore session');
         await AsyncStorage.multiRemove([TOKEN_STORAGE_KEY, PROFILE_STORAGE_KEY]);
         setTokens(null);
         setProfile(null);
