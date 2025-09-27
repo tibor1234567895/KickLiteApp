@@ -7,7 +7,7 @@ A React Native mobile application for watching Kick.com live streams. Built with
 - 🎮 Browse live streams sorted by viewer count
 - 🔍 Search for specific channels
 - ❤️ Follow your favorite streamers
-- 💬 Live chat integration
+- 💬 Native Kick chat powered by WebSockets with optional 7TV emotes (toggle in Settings)
 - 🌓 Dark/Light theme support
 - 📱 Picture-in-Picture support (iOS)
 - 📺 Fullscreen mode with automatic orientation
@@ -25,7 +25,7 @@ A React Native mobile application for watching Kick.com live streams. Built with
 | -------- | --------------------------------------------------------------- |
 | Home     | Browse live streams sorted by viewer count with infinite scroll |
 | Followed | Track your favorite streamers with live status indicators       |
-| Stream   | Watch live streams with chat integration and PiP support        |
+| Stream   | Watch live streams with native chat and PiP support             |
 
 ## Tech Stack
 
@@ -35,7 +35,7 @@ A React Native mobile application for watching Kick.com live streams. Built with
 - React Navigation
 - Expo AV for video playback
 - AsyncStorage for local data persistence
-- WebView for chat integration
+- React Context providers for auth, theme, follow management, and user preferences ([Auth](src/context/AuthContext.tsx), [Theme](src/context/ThemeContext.tsx), [Follow](src/context/FollowContext.tsx), [Preferences](src/context/PreferencesContext.tsx))
 
 ## Prerequisites
 
@@ -88,8 +88,10 @@ src/
 │   ├── api.ts
 │   └── search.ts
 ├── context/
-│   ├── ThemeContext.tsx
-│   └── FollowContext.tsx
+│   ├── AuthContext.tsx
+│   ├── FollowContext.tsx
+│   ├── PreferencesContext.tsx
+│   └── ThemeContext.tsx
 └── types/
     └── index.ts
 ```
@@ -107,7 +109,8 @@ src/
 
 - Live stream playback with native controls
 - Picture-in-Picture support on iOS
-- Chat integration with toggle functionality
+- Native chat rendering with Kick's real-time WebSocket API
+- Optional 7TV emote rendering toggle available under Settings → Chat Preferences
 - Follow/Unfollow streamers
 - Automatic orientation handling for fullscreen
 
@@ -130,14 +133,24 @@ src/
 | Variable | Description |
 | -------- | ----------- |
 | `EXPO_PUBLIC_TYPESENSE_SEARCH_KEY` | Read-only Typesense search key used for local development builds. Required for the search screen. |
+| `EXPO_PUBLIC_KICK_CLIENT_ID` | Kick OAuth client identifier used when initiating Expo AuthSession sign-in flows. Required for authenticated features. |
+| `EXPO_PUBLIC_KICK_AUTHORIZE_URL` | Optional override for the Kick authorization endpoint. Defaults to `https://kick.com/oauth/authorize`. |
+| `EXPO_PUBLIC_KICK_SCOPE` | Space-delimited OAuth scopes requested during sign-in. Defaults to `user:read`. |
+| `EXPO_PUBLIC_KICK_PROXY_URL` | Base URL for your OAuth proxy that handles token exchange and refresh flows. Must expose `/token` and `/refresh` endpoints mirroring Kick's OAuth responses. |
 
 Create a `.env` file (or configure your preferred secrets manager) and export the variable before starting Expo:
 
 ```bash
 EXPO_PUBLIC_TYPESENSE_SEARCH_KEY=your_typesense_search_key_here
+EXPO_PUBLIC_KICK_CLIENT_ID=your_kick_client_id
+EXPO_PUBLIC_KICK_AUTHORIZE_URL=https://kick.com/oauth/authorize
+EXPO_PUBLIC_KICK_SCOPE="user:read chat:write"
+EXPO_PUBLIC_KICK_PROXY_URL=https://your-proxy.example.com
 ```
 
-If the variable is missing the app will surface an informative error. This prevents accidentally running a build with a compromised or undefined key.
+If any required variable is missing the app will surface an informative error. This prevents accidentally running a build with compromised or undefined secrets.
+
+The OAuth proxy should forward authorization codes to Kick's `/oauth/token` endpoint and return the resulting `access_token`, `refresh_token`, `expires_in`, and optional `profile` payload. The proxy's `/refresh` endpoint must accept a JSON body containing `{ "refreshToken": "..." }` and return the same structure so the app can silently renew sessions.
 
 ## API Integration
 
