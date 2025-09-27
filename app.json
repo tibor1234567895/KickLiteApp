@@ -37,7 +37,8 @@
       "permissions": [
         "INTERNET"
       ],
-      "supportsPictureInPicture": true
+      "supportsPictureInPicture": true,
+      "playbackCategory": "playback"
     },
     "extra": {
       "eas": {

@@ -10,6 +10,7 @@ A React Native mobile application for watching Kick.com live streams. Built with
 - 💬 Native Kick chat powered by WebSockets with optional 7TV emotes (toggle in Settings)
 - 🌓 Dark/Light theme support
 - 📱 Picture-in-Picture support (iOS)
+- 🎧 Background audio playback while locked or in other apps
 - 📺 Fullscreen mode with automatic orientation
 - 🔄 Pull-to-refresh functionality
 
@@ -109,6 +110,7 @@ src/
 
 - Live stream playback with native controls
 - Picture-in-Picture support on iOS
+- Background audio playback so streams continue when switching apps or locking the device
 - Native chat rendering with Kick's real-time WebSocket API
 - Optional 7TV emote rendering toggle available under Settings → Chat Preferences
 - Follow/Unfollow streamers
