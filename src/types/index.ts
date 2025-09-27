@@ -60,9 +60,22 @@ export interface ApiResponse {
   data?: Channel;
 }
 
+export interface KickUserProfile {
+  id: string | number;
+  username: string;
+  avatar?: string | null;
+  [key: string]: unknown;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+}
+
 export type RootStackParamList = {
   Home: undefined;
   Stream: { username: string };
   Followed: undefined;
   Search: undefined;
-}; 
+};
