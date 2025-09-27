@@ -59,13 +59,15 @@ cd KickLiteApp
 npm install
 ```
 
-3. Start the development server:
+3. Configure environment variables (see [Environment Configuration](#environment-configuration)).
+
+4. Start the development server:
 
 ```bash
 npm start
 ```
 
-4. Run on your device:
+5. Run on your device:
 
 - Scan the QR code with Expo Go (Android)
 - Scan the QR code with Camera app (iOS)
@@ -83,7 +85,8 @@ src/
 │   ├── SearchScreen.tsx
 │   └── FollowedScreen.tsx
 ├── services/
-│   └── api.ts
+│   ├── api.ts
+│   └── search.ts
 ├── context/
 │   ├── ThemeContext.tsx
 │   └── FollowContext.tsx
@@ -122,6 +125,20 @@ src/
 - Thumbnail previews for live channels
 - Quick access to streams
 
+## Environment Configuration
+
+| Variable | Description |
+| -------- | ----------- |
+| `EXPO_PUBLIC_TYPESENSE_SEARCH_KEY` | Read-only Typesense search key used for local development builds. Required for the search screen. |
+
+Create a `.env` file (or configure your preferred secrets manager) and export the variable before starting Expo:
+
+```bash
+EXPO_PUBLIC_TYPESENSE_SEARCH_KEY=your_typesense_search_key_here
+```
+
+If the variable is missing the app will surface an informative error. This prevents accidentally running a build with a compromised or undefined key.
+
 ## API Integration
 
 The app uses the following Kick.com API endpoints:
@@ -129,6 +146,8 @@ The app uses the following Kick.com API endpoints:
 - Channel Info: `https://kick.com/api/v2/channels/{username}`
 - Live Streams: `https://kick.com/stream/livestreams/tr`
 - Search: `https://search.kick.com/multi_search`
+
+For production builds, proxy search requests through a secure backend (e.g., a serverless function or API gateway) so the mobile app never bundles private Typesense keys. After moving the key server-side, regenerate the compromised search key in Typesense and store only the new server-side credential.
 
 ## Contributing
 
