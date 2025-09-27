@@ -92,4 +92,7 @@ A React Native mobile application built with Expo that allows users to watch liv
 
 ## Known Issues
 - Need to test video playback on different devices
-- Need to verify error handling for all edge cases 
+- Need to verify error handling for all edge cases
+
+## Manual QA
+- **Refresh failure preserves login error:** With a signed-in session, force the `/refresh` proxy endpoint to respond with an error (for example by stopping the proxy or returning HTTP 500). Trigger a token refresh (e.g., wait until expiry or invoke the refresh function). After the refresh failure, confirm that the Login screen displays the error message explaining the failure while the user is signed out.

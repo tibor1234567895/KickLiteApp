@@ -32,12 +32,16 @@ interface AuthContextValue {
   error: string | null;
   isAuthenticated: boolean;
   signIn: () => Promise<void>;
-  signOut: () => Promise<void>;
+  signOut: (options?: SignOutOptions) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
 interface RefreshOptions {
   silent?: boolean;
+}
+
+interface SignOutOptions {
+  preserveError?: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -120,9 +124,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     []
   );
 
-  const signOut = useCallback(async () => {
+  const signOut = useCallback(async (options?: SignOutOptions) => {
     setLoading(true);
-    setError(null);
+    if (!options?.preserveError) {
+      setError(null);
+    }
     clearRefreshTimer();
     try {
       setTokens(null);
@@ -152,7 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!KICK_PROXY_URL) {
         setError('Kick proxy URL is not configured');
-        await signOut();
+        await signOut({ preserveError: true });
         return;
       }
 
@@ -193,7 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const message =
           refreshError instanceof Error ? refreshError.message : 'Failed to refresh session';
         setError(message);
-        await signOut();
+        await signOut({ preserveError: true });
         throw refreshError;
       } finally {
         if (!options?.silent) {
