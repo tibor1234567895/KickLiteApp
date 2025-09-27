@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthSessionResult, makeRedirectUri, startAsync } from 'expo-auth-session';
+import Constants from 'expo-constants';
 import React, {
   createContext,
   useCallback,
@@ -278,9 +279,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
 
     try {
+      const isExpoHosted = Constants.appOwnership === 'expo';
+      const useProxy = Platform.OS === 'web' ? false : isExpoHosted;
       const redirectUri = makeRedirectUri({
         path: 'auth/kick',
-        useProxy: Platform.OS !== 'web',
+        useProxy,
+        scheme: useProxy ? undefined : 'kicklite',
       });
 
       const params = new URLSearchParams({

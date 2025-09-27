@@ -5,6 +5,7 @@ const baseConfig: ExpoConfig = {
   name: 'KickLiteApp',
   slug: 'KickLiteApp',
   version: '1.0.0',
+  scheme: 'kicklite',
   web: {
     favicon: './assets/favicon.png',
   },
