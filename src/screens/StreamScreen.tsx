@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
-import { Audio, Video, ResizeMode, type AVPlaybackStatus, type AudioMode } from 'expo-av';
+import { setAudioModeAsync, type AudioMode } from 'expo-audio';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { VideoView, useVideoPlayer, type VideoPlayerStatus } from 'expo-video';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
@@ -37,12 +38,21 @@ export default function StreamScreen() {
   const [loading, setLoading] = useState(true);
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const videoRef = useRef<Video>(null);
+  const videoRef = useRef<VideoView | null>(null);
   const previousAudioModeRef = useRef<Partial<AudioMode> | null>(null);
   const isMountedRef = useRef(true);
   const requestIdRef = useRef(0);
-  const [playbackStatus, setPlaybackStatus] = useState<AVPlaybackStatus | null>(null);
+  const [playerStatus, setPlayerStatus] = useState<VideoPlayerStatus>('idle');
+  const [isPlayerPlaying, setIsPlayerPlaying] = useState(false);
   const [isAudioConfigured, setIsAudioConfigured] = useState(false);
+
+  const player = useVideoPlayer(
+    channel?.playback_url ?? null,
+    useCallback((newPlayer) => {
+      newPlayer.loop = false;
+      newPlayer.muted = false;
+    }, [])
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -50,12 +60,17 @@ export default function StreamScreen() {
     const configureAudioForBackgroundPlayback = async () => {
       try {
         previousAudioModeRef.current = {
-          staysActiveInBackground: false,
-          playsInSilentModeIOS: false,
+          playsInSilentMode: false,
+          shouldPlayInBackground: false,
+          interruptionMode: 'mixWithOthers',
+          interruptionModeAndroid: 'duckOthers',
+          shouldRouteThroughEarpiece: false,
         };
-        await Audio.setAudioModeAsync({
-          staysActiveInBackground: true,
-          playsInSilentModeIOS: true,
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          shouldPlayInBackground: true,
+          interruptionMode: 'mixWithOthers',
+          interruptionModeAndroid: 'duckOthers',
         });
       } catch (audioError) {
         console.error('Failed to configure audio mode for background playback', audioError);
@@ -73,10 +88,13 @@ export default function StreamScreen() {
 
       const restorePreviousAudioMode = async () => {
         try {
-          await Audio.setAudioModeAsync(
+          await setAudioModeAsync(
             previousAudioModeRef.current ?? {
-              staysActiveInBackground: false,
-              playsInSilentModeIOS: false,
+              playsInSilentMode: false,
+              shouldPlayInBackground: false,
+              interruptionMode: 'mixWithOthers',
+              interruptionModeAndroid: 'duckOthers',
+              shouldRouteThroughEarpiece: false,
             }
           );
         } catch (restoreError) {
@@ -89,16 +107,12 @@ export default function StreamScreen() {
   }, []);
 
   const requestPictureInPicture = useCallback(async () => {
-    if (!videoRef.current || !playbackStatus || !playbackStatus.isLoaded) {
-      return;
-    }
-
-    if (playbackStatus.isBuffering || !playbackStatus.isPlaying) {
+    if (!videoRef.current || playerStatus !== 'readyToPlay' || !isPlayerPlaying) {
       return;
     }
 
     try {
-      if (typeof videoRef.current.presentPictureInPictureAsync !== 'function') {
+      if (typeof videoRef.current.startPictureInPicture !== 'function') {
         throw new Error('Picture-in-Picture is not supported on this device.');
       }
 
@@ -116,7 +130,7 @@ export default function StreamScreen() {
         }
       }
 
-      await videoRef.current.presentPictureInPictureAsync();
+      await videoRef.current.startPictureInPicture();
     } catch (pipError) {
       const message =
         pipError instanceof Error
@@ -124,7 +138,7 @@ export default function StreamScreen() {
           : 'Picture-in-Picture is not supported on this device.';
       Alert.alert('Unable to start Picture-in-Picture', message);
     }
-  }, [playbackStatus]);
+  }, [isPlayerPlaying, playerStatus]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -132,10 +146,15 @@ export default function StreamScreen() {
 
     return () => {
       isMountedRef.current = false;
-      videoRef.current?.pauseAsync();
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      player.pause();
+    };
+  }, [player]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
@@ -178,18 +197,54 @@ export default function StreamScreen() {
     }
   }, [channel, colors, isChatVisible, isFollowing, navigation]);
 
-  const handleFullscreenUpdate = async ({ fullscreenUpdate }: { fullscreenUpdate: number }) => {
-    switch (fullscreenUpdate) {
-      case 1: // Video.FULLSCREEN_UPDATE_PLAYER_WILL_PRESENT
-        setIsFullscreen(true);
-        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-        break;
-      case 3: // Video.FULLSCREEN_UPDATE_PLAYER_WILL_DISMISS
-        setIsFullscreen(false);
-        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-        break;
+  const handleFullscreenEnter = useCallback(async () => {
+    setIsFullscreen(true);
+    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+  }, []);
+
+  const handleFullscreenExit = useCallback(async () => {
+    setIsFullscreen(false);
+    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+  }, []);
+
+  useEffect(() => {
+    setPlayerStatus(player.status);
+    setIsPlayerPlaying(player.playing);
+
+    const statusSubscription = player.addListener('statusChange', ({ status, error }) => {
+      setPlayerStatus(status);
+      if (error) {
+        console.error('Video player status error', error);
+      }
+    });
+    const playingSubscription = player.addListener('playingChange', ({ isPlaying }) => {
+      setIsPlayerPlaying(isPlaying);
+    });
+
+    return () => {
+      statusSubscription.remove();
+      playingSubscription.remove();
+    };
+  }, [player]);
+
+  useEffect(() => {
+    player.staysActiveInBackground = isAudioConfigured;
+  }, [isAudioConfigured, player]);
+
+  useEffect(() => {
+    if (!isAudioConfigured) {
+      player.pause();
+      return;
     }
-  };
+
+    if (playerStatus === 'readyToPlay') {
+      try {
+        player.play();
+      } catch (playError) {
+        console.error('Failed to start playback', playError);
+      }
+    }
+  }, [isAudioConfigured, playerStatus, player]);
 
   const loadChannel = useCallback(async (username: string) => {
     const requestId = ++requestIdRef.current;
@@ -256,22 +311,15 @@ export default function StreamScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Video
+      <VideoView
         ref={videoRef}
-        source={{ uri: channel.playback_url }}
-        rate={1.0}
-        volume={1.0}
-        isMuted={false}
-        resizeMode={ResizeMode.CONTAIN}
-        shouldPlay={isAudioConfigured}
-        useNativeControls
-        onPlaybackStatusUpdate={setPlaybackStatus}
-        onFullscreenUpdate={handleFullscreenUpdate}
+        player={player}
+        nativeControls
+        allowsPictureInPicture
+        contentFit="contain"
+        onFullscreenEnter={handleFullscreenEnter}
+        onFullscreenExit={handleFullscreenExit}
         style={[styles.video, !isChatVisible && { height: height - 150 }]}
-        isLooping={false}
-        usePoster
-        posterSource={{ uri: channel.livestream.thumbnail.url }}
-        posterStyle={styles.poster}
       />
       {!isFullscreen && (
         <>
@@ -301,9 +349,6 @@ const styles = StyleSheet.create({
   video: {
     width,
     height: VIDEO_HEIGHT,
-  },
-  poster: {
-    resizeMode: 'cover',
   },
   infoContainer: {
     padding: 16,
