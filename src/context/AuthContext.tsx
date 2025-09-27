@@ -1,5 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AuthSessionResult, makeRedirectUri, startAsync } from 'expo-auth-session';
+import {
+  AuthSessionResult,
+  generateRandomAsync,
+  makeRedirectUri,
+  startAsync,
+} from 'expo-auth-session';
 import Constants from 'expo-constants';
 import React, {
   createContext,
@@ -100,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingState = useRef<string | null>(null);
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimer.current) {
@@ -287,11 +293,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         scheme: useProxy ? undefined : 'kicklite',
       });
 
+      const state = await generateRandomAsync(16);
+      pendingState.current = state;
+
       const params = new URLSearchParams({
         client_id: KICK_CLIENT_ID,
         response_type: 'code',
         scope: KICK_SCOPE,
         redirect_uri: redirectUri,
+        state,
       });
 
       const authUrl = `${KICK_AUTHORIZE_URL}?${params.toString()}`;
@@ -311,10 +321,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      const { code, error: authError } = authResult.params ?? {};
+      const { code, error: authError, state: returnedState } = authResult.params ?? {};
 
       if (authError) {
         throw new Error(authError);
+      }
+
+      if (!returnedState || returnedState !== pendingState.current) {
+        throw new Error('Authentication response state mismatch');
       }
 
       if (!code) {
@@ -354,6 +368,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(message);
     } finally {
       setLoading(false);
+      pendingState.current = null;
     }
   }, [persistSession]);
 

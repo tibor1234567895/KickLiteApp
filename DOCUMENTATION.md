@@ -96,3 +96,5 @@ A React Native mobile application built with Expo that allows users to watch liv
 
 ## Manual QA
 - **Refresh failure preserves login error:** With a signed-in session, force the `/refresh` proxy endpoint to respond with an error (for example by stopping the proxy or returning HTTP 500). Trigger a token refresh (e.g., wait until expiry or invoke the refresh function). After the refresh failure, confirm that the Login screen displays the error message explaining the failure while the user is signed out.
+- **Kick OAuth happy path:** Start a fresh sign-in, observe the generated Kick consent screen, approve access, and confirm that the app signs in successfully without error once Kick redirects back.
+- **Kick OAuth state mismatch aborts sign-in:** Initiate sign-in, and before completing the Kick flow manually tamper with the returned `state` (for example by intercepting the redirect URI or modifying the response in the proxy). Confirm that sign-in is aborted, no tokens are stored, and the app displays an authentication error.
