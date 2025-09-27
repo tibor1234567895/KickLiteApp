@@ -14,21 +14,15 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../types';
+import { searchChannels as fetchChannelSearch, ChannelSearchResult } from '../services/search';
 
 type SearchScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Search'>;
-
-interface SearchResult {
-  username: string;
-  followers_count: number;
-  is_live: boolean;
-  verified: boolean;
-}
 
 export default function SearchScreen() {
   const navigation = useNavigation<SearchScreenNavigationProp>();
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<ChannelSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,40 +36,18 @@ export default function SearchScreen() {
     setError(null);
 
     try {
-      const response = await fetch("https://search.kick.com/multi_search", {
-        method: "POST",
-        headers: {
-          "content-type": "text/plain;charset=UTF-8",
-          "x-typesense-api-key": "nXIMW0iEN6sMujFYjFuhdrSwVow3pDQu"
-        },
-        body: JSON.stringify({
-          searches: [
-            { preset: "category_search", q: query },
-            { preset: "channel_search", q: query }
-          ]
-        })
-      });
-
-      const data = await response.json();
-      
-      // Extract channel results from the response
-      const channelResults = data.results[1].hits.map((hit: any) => ({
-        username: hit.document.username,
-        followers_count: hit.document.followers_count,
-        is_live: hit.document.is_live,
-        verified: hit.document.verified
-      }));
-
+      const channelResults = await fetchChannelSearch(query);
       setResults(channelResults);
     } catch (err) {
-      setError('Failed to search channels');
+      const message = err instanceof Error ? err.message : 'Failed to search channels';
+      setError(message);
       console.error('Search error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const renderItem = ({ item }: { item: SearchResult }) => (
+  const renderItem = ({ item }: { item: ChannelSearchResult }) => (
     <TouchableOpacity
       style={[styles.resultItem, { backgroundColor: colors.card }]}
       onPress={() => navigation.navigate('Stream', { username: item.username })}
