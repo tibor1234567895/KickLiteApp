@@ -1,13 +1,23 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Dimensions, TouchableOpacity, AppState, Platform } from 'react-native';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
-import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
-import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
+import { Video, ResizeMode } from 'expo-av';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { getChannelInfo } from '../services/api';
-import { useTheme } from '../context/ThemeContext';
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Dimensions,
+  TouchableOpacity,
+  AppState,
+  Platform,
+} from 'react-native';
+
+import ChatView from '../components/ChatView';
 import { useFollow } from '../context/FollowContext';
+import { useTheme } from '../context/ThemeContext';
+import { getChannelInfo } from '../services/api';
 import type { Channel, RootStackParamList } from '../types';
 
 type StreamScreenRouteProp = RouteProp<RootStackParamList, 'Stream'>;
@@ -31,7 +41,7 @@ export default function StreamScreen() {
   useEffect(() => {
     loadChannel();
 
-    const subscription = AppState.addEventListener('change', nextAppState => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'background' || nextAppState === 'inactive') {
         // Enable PiP when app goes to background if video is playing
         if (Platform.OS === 'ios') {
@@ -58,8 +68,7 @@ export default function StreamScreen() {
           <View style={{ flexDirection: 'row' }}>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => setIsChatVisible(!isChatVisible)}
-            >
+              onPress={() => setIsChatVisible(!isChatVisible)}>
               <Ionicons
                 name={isChatVisible ? 'chatbubble' : 'chatbubble-outline'}
                 size={24}
@@ -68,8 +77,7 @@ export default function StreamScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => toggleFollow(channel.user.username)}
-            >
+              onPress={() => toggleFollow(channel.user.username)}>
               <Ionicons
                 name={isFollowing(channel.user.username) ? 'heart' : 'heart-outline'}
                 size={24}
@@ -144,10 +152,7 @@ export default function StreamScreen() {
         shouldPlay
         useNativeControls
         onFullscreenUpdate={handleFullscreenUpdate}
-        style={[
-          styles.video,
-          !isChatVisible && { height: height - 150 }
-        ]}
+        style={[styles.video, !isChatVisible && { height: height - 150 }]}
         isLooping={false}
         usePoster
         posterSource={{ uri: channel.livestream.thumbnail.url }}
@@ -155,10 +160,7 @@ export default function StreamScreen() {
       />
       {!isFullscreen && (
         <>
-          <View style={[
-            styles.infoContainer,
-            !isChatVisible && { flex: 1 }
-          ]}>
+          <View style={[styles.infoContainer, !isChatVisible && { flex: 1 }]}>
             <Text style={[styles.title, { color: colors.text }]}>
               {channel.livestream.session_title}
             </Text>
@@ -168,16 +170,7 @@ export default function StreamScreen() {
           </View>
           {isChatVisible && (
             <View style={styles.chatContainer}>
-              <WebView
-                source={{ uri: `https://kick.com/${route.params.username}/chatroom` }}
-                style={styles.webview}
-                startInLoadingState={true}
-                renderLoading={() => (
-                  <View style={[styles.webviewLoader, { backgroundColor: colors.background }]}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                  </View>
-                )}
-              />
+              <ChatView channelId={channel.id} username={route.params.username} />
             </View>
           )}
         </>
@@ -191,7 +184,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   video: {
-    width: width,
+    width,
     height: VIDEO_HEIGHT,
   },
   poster: {
@@ -213,18 +206,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#eee',
   },
-  webview: {
-    flex: 1,
-  },
-  webviewLoader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   errorText: {
     fontSize: 16,
     textAlign: 'center',
@@ -233,4 +214,4 @@ const styles = StyleSheet.create({
     marginRight: 15,
     padding: 4,
   },
-}); 
+});
