@@ -7,11 +7,13 @@ import { ActivityIndicator, TouchableOpacity, View } from 'react-native';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { FollowProvider } from './src/context/FollowContext';
+import { PreferencesProvider } from './src/context/PreferencesContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import FollowedScreen from './src/screens/FollowedScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SearchScreen from './src/screens/SearchScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 import StreamScreen from './src/screens/StreamScreen';
 import { RootStackParamList } from './src/types';
 
@@ -21,12 +23,12 @@ const Tab = createBottomTabNavigator<TabParamList>();
 type TabParamList = {
   Home: undefined;
   Followed: undefined;
+  Settings: undefined;
 };
 
 function HomeTabs() {
-  const { theme, colors, toggleTheme } = useTheme();
+  const { colors } = useTheme();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { signOut } = useAuth();
 
   return (
     <Tab.Navigator
@@ -38,6 +40,8 @@ function HomeTabs() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Followed') {
             iconName = focused ? 'heart' : 'heart-outline';
+          } else if (route.name === 'Settings') {
+            iconName = focused ? 'settings' : 'settings-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -54,16 +58,6 @@ function HomeTabs() {
           shadowColor: colors.shadow,
         },
         headerTintColor: colors.text,
-        headerRight: () => (
-          <View style={{ flexDirection: 'row' }}>
-            <TouchableOpacity onPress={signOut} style={{ marginRight: 15 }}>
-              <Ionicons name="log-out-outline" size={24} color={colors.text} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={toggleTheme} style={{ marginRight: 15 }}>
-              <Ionicons name={theme === 'light' ? 'moon' : 'sunny'} size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-        ),
       })}>
       <Tab.Screen
         name="Home"
@@ -76,21 +70,12 @@ function HomeTabs() {
                 style={{ marginRight: 15 }}>
                 <Ionicons name="search" size={24} color={colors.text} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={signOut} style={{ marginRight: 15 }}>
-                <Ionicons name="log-out-outline" size={24} color={colors.text} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={toggleTheme} style={{ marginRight: 15 }}>
-                <Ionicons
-                  name={theme === 'light' ? 'moon' : 'sunny'}
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
             </View>
           ),
         }}
       />
       <Tab.Screen name="Followed" component={FollowedScreen} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
 }
@@ -155,7 +140,9 @@ export default function App() {
       <AuthProvider>
         <NavigationContainer>
           <FollowProvider>
-            <AppContent />
+            <PreferencesProvider>
+              <AppContent />
+            </PreferencesProvider>
           </FollowProvider>
         </NavigationContainer>
       </AuthProvider>
