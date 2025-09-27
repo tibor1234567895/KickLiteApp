@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { usePreferences } from '../context/PreferencesContext';
 import { useTheme } from '../context/ThemeContext';
 
 interface ChatViewProps {
@@ -148,6 +149,9 @@ function createRef() {
 
 export default function ChatView({ channelId, username }: ChatViewProps) {
   const { colors } = useTheme();
+  const {
+    chatPreferences: { enableSevenTvEmotes },
+  } = usePreferences();
   const socketRef = useRef<WebSocket | null>(null);
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -312,8 +316,12 @@ export default function ChatView({ channelId, username }: ChatViewProps) {
   }, [channelId, teardownSocket, updateConnectionState]);
 
   useEffect(() => {
-    loadEmotes();
-  }, [loadEmotes]);
+    if (enableSevenTvEmotes) {
+      loadEmotes();
+    } else {
+      setEmoteMap({});
+    }
+  }, [enableSevenTvEmotes, loadEmotes]);
 
   useEffect(() => {
     connectSocket();
