@@ -1,17 +1,27 @@
 import axios from 'axios';
-import { ApiResponse, Channel, LivestreamsResponse } from '../types';
+
+import { Channel, LivestreamsResponse } from '../types';
 
 const BASE_URL = 'https://kick.com/api/v2';
 const STREAM_URL = 'https://kick.com';
 
-const headers = {
-  'Accept': 'application/json',
-  'Content-Type': 'application/json',
+let authToken: string | null = null;
+
+export const configureAuthToken = (token: string | null) => {
+  authToken = token;
 };
+
+const buildHeaders = () => ({
+  Accept: 'application/json',
+  'Content-Type': 'application/json',
+  ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+});
 
 export const getChannelInfo = async (username: string): Promise<Channel> => {
   try {
-    const response = await axios.get<Channel>(`${BASE_URL}/channels/${username}`, { headers });
+    const response = await axios.get<Channel>(`${BASE_URL}/channels/${username}`, {
+      headers: buildHeaders(),
+    });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -23,17 +33,14 @@ export const getChannelInfo = async (username: string): Promise<Channel> => {
 
 export const getLivestreams = async (page = 1, limit = 24): Promise<LivestreamsResponse> => {
   try {
-    const response = await axios.get<LivestreamsResponse>(
-      `${STREAM_URL}/stream/livestreams/tr`,
-      {
-        params: {
-          page,
-          limit,
-          sort: 'desc',
-        },
-        headers,
-      }
-    );
+    const response = await axios.get<LivestreamsResponse>(`${STREAM_URL}/stream/livestreams/tr`, {
+      params: {
+        page,
+        limit,
+        sort: 'desc',
+      },
+      headers: buildHeaders(),
+    });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -41,4 +48,4 @@ export const getLivestreams = async (page = 1, limit = 24): Promise<LivestreamsR
     }
     throw new Error('An unexpected error occurred');
   }
-}; 
+};
