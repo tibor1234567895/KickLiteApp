@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
-import { Video, ResizeMode, type AVPlaybackStatus } from 'expo-av';
+import { Audio, Video, ResizeMode, type AVPlaybackStatus, type AudioMode } from 'expo-av';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
@@ -38,7 +38,53 @@ export default function StreamScreen() {
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const videoRef = useRef<Video>(null);
+  const previousAudioModeRef = useRef<Partial<AudioMode> | null>(null);
   const [playbackStatus, setPlaybackStatus] = useState<AVPlaybackStatus | null>(null);
+  const [isAudioConfigured, setIsAudioConfigured] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const configureAudioForBackgroundPlayback = async () => {
+      try {
+        previousAudioModeRef.current = {
+          staysActiveInBackground: false,
+          playsInSilentModeIOS: false,
+        };
+        await Audio.setAudioModeAsync({
+          staysActiveInBackground: true,
+          playsInSilentModeIOS: true,
+        });
+      } catch (audioError) {
+        console.error('Failed to configure audio mode for background playback', audioError);
+      } finally {
+        if (isMounted) {
+          setIsAudioConfigured(true);
+        }
+      }
+    };
+
+    configureAudioForBackgroundPlayback();
+
+    return () => {
+      isMounted = false;
+
+      const restorePreviousAudioMode = async () => {
+        try {
+          await Audio.setAudioModeAsync(
+            previousAudioModeRef.current ?? {
+              staysActiveInBackground: false,
+              playsInSilentModeIOS: false,
+            }
+          );
+        } catch (restoreError) {
+          console.error('Failed to restore previous audio mode', restoreError);
+        }
+      };
+
+      restorePreviousAudioMode();
+    };
+  }, []);
 
   const requestPictureInPicture = useCallback(async () => {
     if (!videoRef.current || !playbackStatus || !playbackStatus.isLoaded) {
@@ -190,7 +236,7 @@ export default function StreamScreen() {
         volume={1.0}
         isMuted={false}
         resizeMode={ResizeMode.CONTAIN}
-        shouldPlay
+        shouldPlay={isAudioConfigured}
         useNativeControls
         onPlaybackStatusUpdate={setPlaybackStatus}
         onFullscreenUpdate={handleFullscreenUpdate}
