@@ -342,7 +342,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const authResult = (await request.promptAsync(
         { authorizationEndpoint: KICK_AUTHORIZE_URL },
-        { redirectUri }
+        { useProxy, redirectUri }
       )) as AuthSessionResult & {
         params: Record<string, string | undefined>;
       };
