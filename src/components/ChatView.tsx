@@ -316,6 +316,13 @@ export default function ChatView({ channelId, username }: ChatViewProps) {
   }, [channelId, teardownSocket, updateConnectionState]);
 
   useEffect(() => {
+    setMessages([]);
+    setLoading(true);
+    setError(null);
+    updateConnectionState('connecting');
+  }, [channelId, updateConnectionState]);
+
+  useEffect(() => {
     if (enableSevenTvEmotes) {
       loadEmotes();
     } else {
