@@ -6,10 +6,10 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 const LoginScreen: React.FC = () => {
-  const { signIn, authPending, bootstrapping, error } = useAuth();
+  const { signIn, authPending, bootstrapping, error, isOAuthConfigured } = useAuth();
   const { colors } = useTheme();
 
-  const isDisabled = bootstrapping || authPending;
+  const isDisabled = bootstrapping || authPending || !isOAuthConfigured;
   const buttonLabel = bootstrapping
     ? 'Preparing…'
     : authPending
