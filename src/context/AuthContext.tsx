@@ -1,12 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  AuthRequest,
-  AuthSessionResult,
-  ResponseType,
-  makeRedirectUri,
-} from 'expo-auth-session';
-import { randomUUID } from 'expo-crypto';
+import { AuthRequest, AuthSessionResult, ResponseType, makeRedirectUri } from 'expo-auth-session';
+import type { AuthDiscoveryDocument } from 'expo-auth-session';
 import Constants from 'expo-constants';
+import { randomUUID } from 'expo-crypto';
 import React, {
   createContext,
   useCallback,
@@ -18,6 +14,7 @@ import React, {
 } from 'react';
 import { Platform } from 'react-native';
 
+import KickAuthModal from '../components/KickAuthModal';
 import { configureAuthToken } from '../services/api';
 import { AuthTokens, KickUserProfile } from '../types';
 
@@ -130,6 +127,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(configurationErrorMessage);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingState = useRef<string | null>(null);
+  const modalPromiseRef = useRef<{
+    resolve: (result: AuthSessionResult & { params?: Record<string, string | undefined> }) => void;
+  } | null>(null);
+  const [authModalState, setAuthModalState] = useState({
+    visible: false,
+    authorizeUrl: null as string | null,
+    redirectUri: '',
+    request: null as AuthRequest | null,
+  });
+
+  const resetAuthModal = useCallback(() => {
+    setAuthModalState({
+      visible: false,
+      authorizeUrl: null,
+      redirectUri: '',
+      request: null,
+    });
+  }, []);
+
+  const handleModalComplete = useCallback(
+    (result: AuthSessionResult & { params?: Record<string, string | undefined> }) => {
+      if (modalPromiseRef.current) {
+        modalPromiseRef.current.resolve(result);
+        modalPromiseRef.current = null;
+      }
+      resetAuthModal();
+    },
+    [resetAuthModal]
+  );
+
+  const handleModalCancel = useCallback(() => {
+    if (modalPromiseRef.current) {
+      modalPromiseRef.current.resolve({ type: 'dismiss' } as AuthSessionResult & {
+        params?: Record<string, string | undefined>;
+      });
+      modalPromiseRef.current = null;
+    }
+    resetAuthModal();
+  }, [resetAuthModal]);
 
   const loading = bootstrapping || authPending;
 
@@ -339,13 +375,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         state,
         scopes: KICK_SCOPE.split(' '),
       });
+      const discovery = {
+        authorizationEndpoint: KICK_AUTHORIZE_URL,
+      } satisfies AuthDiscoveryDocument;
 
-      const authResult = (await request.promptAsync(
-        { authorizationEndpoint: KICK_AUTHORIZE_URL },
-        { useProxy, redirectUri }
-      )) as AuthSessionResult & {
-        params: Record<string, string | undefined>;
+      let authResult: AuthSessionResult & {
+        params?: Record<string, string | undefined>;
       };
+
+      if (Platform.OS === 'android' && Constants.appOwnership === 'expo') {
+        const authorizeUrl = await request.makeAuthUrlAsync(discovery);
+
+        authResult = await new Promise((resolve) => {
+          modalPromiseRef.current = { resolve };
+          setAuthModalState({
+            visible: true,
+            authorizeUrl,
+            redirectUri,
+            request,
+          });
+        });
+      } else {
+        authResult = (await request.promptAsync(discovery, {
+          useProxy,
+          redirectUri,
+        })) as AuthSessionResult & {
+          params?: Record<string, string | undefined>;
+        };
+      }
 
       if (authResult.type !== 'success') {
         if (authResult.type === 'error' || authResult.type === 'dismiss') {
@@ -423,7 +480,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [
       authPending,
       bootstrapping,
-      configurationErrorMessage,
       error,
       isOAuthConfigured,
       loading,
@@ -436,7 +492,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ]
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <KickAuthModal
+        visible={authModalState.visible}
+        authorizeUrl={authModalState.authorizeUrl}
+        redirectUri={authModalState.redirectUri}
+        request={authModalState.request}
+        onComplete={handleModalComplete}
+        onCancel={handleModalCancel}
+      />
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
