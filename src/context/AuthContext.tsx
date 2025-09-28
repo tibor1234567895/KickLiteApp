@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  AuthRequest,
   AuthSessionResult,
+  ResponseType,
   makeRedirectUri,
-  startAsync,
 } from 'expo-auth-session';
 import { randomUUID } from 'expo-crypto';
 import Constants from 'expo-constants';
@@ -330,20 +331,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const state = randomUUID();
       pendingState.current = state;
 
-      const params = new URLSearchParams({
-        client_id: KICK_CLIENT_ID,
-        response_type: 'code',
-        scope: KICK_SCOPE,
-        redirect_uri: redirectUri,
+      const request = new AuthRequest({
+        clientId: KICK_CLIENT_ID,
+        redirectUri,
+        responseType: ResponseType.Code,
+        usePKCE: false,
         state,
+        scopes: KICK_SCOPE.split(' '),
       });
 
-      const authUrl = `${KICK_AUTHORIZE_URL}?${params.toString()}`;
-
-      const authResult = (await startAsync({
-        authUrl,
-        returnUrl: redirectUri,
-      })) as AuthSessionResult & {
+      const authResult = (await request.promptAsync(
+        { authorizationEndpoint: KICK_AUTHORIZE_URL },
+        { redirectUri }
+      )) as AuthSessionResult & {
         params: Record<string, string | undefined>;
       };
 
