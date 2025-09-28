@@ -12,11 +12,20 @@ const MISSING_KEY_ERROR =
   'Missing Typesense search key. Set EXPO_PUBLIC_TYPESENSE_SEARCH_KEY in your environment before running the app.';
 
 const getTypesenseSearchKey = (): string => {
-  const extra = (Constants.expoConfig ?? Constants.manifest)?.extra as
+  const legacyExtra = (Constants.expoConfig ?? Constants.manifest)?.extra as
     | { typesenseSearchKey?: string }
     | undefined;
 
-  const key = extra?.typesenseSearchKey;
+  const configExtra = Constants.expoConfigExtra as
+    | { typesenseSearchKey?: string }
+    | undefined;
+
+  const envKey = process.env.EXPO_PUBLIC_TYPESENSE_SEARCH_KEY;
+
+  const key =
+    legacyExtra?.typesenseSearchKey ??
+    configExtra?.typesenseSearchKey ??
+    envKey;
 
   if (!key) {
     throw new Error(MISSING_KEY_ERROR);
