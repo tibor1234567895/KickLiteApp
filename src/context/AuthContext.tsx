@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   AuthSessionResult,
-  generateRandomAsync,
   makeRedirectUri,
   startAsync,
 } from 'expo-auth-session';
+import { randomUUID } from 'expo-crypto';
 import Constants from 'expo-constants';
 import React, {
   createContext,
@@ -327,7 +327,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         scheme: useProxy ? undefined : 'kicklite',
       });
 
-      const state = await generateRandomAsync(16);
+      const state = randomUUID();
       pendingState.current = state;
 
       const params = new URLSearchParams({
