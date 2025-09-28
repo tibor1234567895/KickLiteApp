@@ -34,8 +34,9 @@ A React Native mobile application for watching Kick.com live streams. Built with
 - TypeScript
 - NativeWind (Tailwind CSS)
 - React Navigation
-- Expo AV for video playback
+- expo-video for low-latency HLS playback with Picture-in-Picture support
 - AsyncStorage for local data persistence
+- Realtime WebSocket chat renderer with optional 7TV emote integration (no WebViews required)
 - React Context providers for auth, theme, follow management, and user preferences ([Auth](src/context/AuthContext.tsx), [Theme](src/context/ThemeContext.tsx), [Follow](src/context/FollowContext.tsx), [Preferences](src/context/PreferencesContext.tsx))
 
 ## Prerequisites
