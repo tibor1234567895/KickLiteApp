@@ -169,31 +169,45 @@ export default function ChatView({ channelId, username }: ChatViewProps) {
     setConnectionState(state);
   }, []);
 
-  const loadEmotes = useCallback(async () => {
-    try {
-      const [globalResponse, channelResponse] = await Promise.all([
-        fetch('https://7tv.io/v3/emote-sets/global'),
-        fetch(`https://7tv.io/v3/users/kick/${username}`),
-      ]);
+  const loadEmotes = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const [globalResponse, channelResponse] = await Promise.all([
+          fetch('https://7tv.io/v3/emote-sets/global', { signal }),
+          fetch(`https://7tv.io/v3/users/kick/${username}`, { signal }),
+        ]);
 
-      if (!globalResponse.ok) {
-        throw new Error('Failed to load global emotes');
+        if (signal?.aborted) {
+          return;
+        }
+
+        if (!globalResponse.ok) {
+          throw new Error('Failed to load global emotes');
+        }
+
+        const globalData: SevenTVEmoteSetResponse = await globalResponse.json();
+        let channelSet: SevenTVEmoteSetResponse = {};
+
+        if (channelResponse.ok) {
+          const channelData: SevenTVUserResponse = await channelResponse.json();
+          channelSet = channelData.emote_set ?? {};
+        }
+
+        if (signal?.aborted) {
+          return;
+        }
+
+        setEmoteMap(extractEmoteMap([globalData, channelSet]));
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError' || signal?.aborted) {
+          return;
+        }
+        console.warn('Failed to load 7TV emotes', err);
+        setEmoteMap({});
       }
-
-      const globalData: SevenTVEmoteSetResponse = await globalResponse.json();
-      let channelSet: SevenTVEmoteSetResponse = {};
-
-      if (channelResponse.ok) {
-        const channelData: SevenTVUserResponse = await channelResponse.json();
-        channelSet = channelData.emote_set ?? {};
-      }
-
-      setEmoteMap(extractEmoteMap([globalData, channelSet]));
-    } catch (err) {
-      console.warn('Failed to load 7TV emotes', err);
-      setEmoteMap({});
-    }
-  }, [username]);
+    },
+    [username]
+  );
 
   const teardownSocket = useCallback(() => {
     if (heartbeatRef.current) {
@@ -323,11 +337,18 @@ export default function ChatView({ channelId, username }: ChatViewProps) {
   }, [channelId, updateConnectionState]);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     if (enableSevenTvEmotes) {
-      loadEmotes();
+      loadEmotes(controller.signal);
     } else {
+      controller.abort();
       setEmoteMap({});
     }
+
+    return () => {
+      controller.abort();
+    };
   }, [enableSevenTvEmotes, loadEmotes]);
 
   useEffect(() => {
