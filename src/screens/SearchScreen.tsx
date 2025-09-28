@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -26,9 +26,17 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const latestRequestIdRef = useRef(0);
+
   const searchChannels = async (query: string) => {
-    if (!query.trim()) {
+    const trimmedQuery = query.trim();
+    const requestId = latestRequestIdRef.current + 1;
+    latestRequestIdRef.current = requestId;
+
+    if (!trimmedQuery) {
       setResults([]);
+      setError(null);
+      setLoading(false);
       return;
     }
 
@@ -36,14 +44,25 @@ export default function SearchScreen() {
     setError(null);
 
     try {
-      const channelResults = await fetchChannelSearch(query);
+      const channelResults = await fetchChannelSearch(trimmedQuery);
+
+      if (latestRequestIdRef.current !== requestId) {
+        return;
+      }
+
       setResults(channelResults);
     } catch (err) {
+      if (latestRequestIdRef.current !== requestId) {
+        return;
+      }
+
       const message = err instanceof Error ? err.message : 'Failed to search channels';
       setError(message);
       console.error('Search error:', err);
     } finally {
-      setLoading(false);
+      if (latestRequestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
   };
 
@@ -97,7 +116,7 @@ export default function SearchScreen() {
             <TouchableOpacity
               onPress={() => {
                 setSearchQuery('');
-                setResults([]);
+                searchChannels('');
               }}
               style={styles.clearButton}
             >
