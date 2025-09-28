@@ -38,6 +38,8 @@ interface AuthContextValue {
   bootstrapping: boolean;
   authPending: boolean;
   error: string | null;
+  missingOAuthConfig: string[];
+  isOAuthConfigured: boolean;
   isAuthenticated: boolean;
   signIn: () => Promise<void>;
   signOut: (options?: SignOutOptions) => Promise<void>;
@@ -102,15 +104,39 @@ const resolveExpiry = (expiresIn: unknown, fallback?: number) => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const missingOAuthConfig = useMemo(() => {
+    const missing: string[] = [];
+    if (!KICK_CLIENT_ID) {
+      missing.push('EXPO_PUBLIC_KICK_CLIENT_ID');
+    }
+    if (!KICK_PROXY_URL) {
+      missing.push('EXPO_PUBLIC_KICK_PROXY_URL');
+    }
+    return missing;
+  }, []);
+  const isOAuthConfigured = missingOAuthConfig.length === 0;
+  const configurationErrorMessage = useMemo(
+    () =>
+      isOAuthConfigured
+        ? null
+        : `Kick OAuth is missing configuration: ${missingOAuthConfig.join(', ')}`,
+    [isOAuthConfigured, missingOAuthConfig]
+  );
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [profile, setProfile] = useState<KickUserProfile | null>(null);
   const [bootstrapping, setBootstrapping] = useState<boolean>(true);
   const [authPending, setAuthPending] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(configurationErrorMessage);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingState = useRef<string | null>(null);
 
   const loading = bootstrapping || authPending;
+
+  useEffect(() => {
+    if (!isOAuthConfigured) {
+      setError(configurationErrorMessage);
+    }
+  }, [configurationErrorMessage, isOAuthConfigured]);
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimer.current) {
@@ -172,7 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!KICK_PROXY_URL) {
-        setError('Kick proxy URL is not configured');
+        setError(configurationErrorMessage ?? 'Kick proxy URL is not configured');
         await signOut({ preserveError: true });
         return;
       }
@@ -222,7 +248,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     },
-    [persistSession, profile, signOut, tokens]
+    [configurationErrorMessage, persistSession, profile, signOut, tokens]
   );
 
   useEffect(() => {
@@ -284,8 +310,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [clearRefreshTimer, refreshAuthTokens, tokens]);
 
   const signIn = useCallback(async () => {
-    if (!KICK_CLIENT_ID || !KICK_PROXY_URL) {
-      setError('Kick OAuth is not fully configured');
+    if (!isOAuthConfigured) {
+      setError(configurationErrorMessage);
       return;
     }
 
@@ -377,7 +403,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAuthPending(false);
       pendingState.current = null;
     }
-  }, [persistSession]);
+  }, [configurationErrorMessage, isOAuthConfigured, persistSession]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -387,6 +413,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       bootstrapping,
       authPending,
       error,
+      missingOAuthConfig,
+      isOAuthConfigured,
       isAuthenticated: Boolean(tokens?.accessToken),
       signIn,
       signOut,
@@ -395,8 +423,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [
       authPending,
       bootstrapping,
+      configurationErrorMessage,
       error,
+      isOAuthConfigured,
       loading,
+      missingOAuthConfig,
       profile,
       refreshAuthTokens,
       signIn,
