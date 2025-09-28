@@ -1,100 +1,86 @@
 # Kick Live Streaming App Documentation
 
 ## Project Overview
-A React Native mobile application built with Expo that allows users to watch live streams from Kick.com by entering a username.
+KickLiteApp is an Expo-managed React Native client for Kick.com that focuses on quick stream discovery, native playback, and an immersive chat experience. Users can browse featured streams, follow creators, sign in with Kick OAuth, and watch shows with real-time chat rendered directly on device.
 
-## Technical Requirements
-- Built with Expo
-- Uses Kick.com API v2
-- Video player integration for live streaming
-- Username-based stream lookup
+## Tech Stack
+- Expo SDK 54 with React Native 0.81 and TypeScript
+- `expo-video` for hardware-accelerated HLS playback, PiP, and background audio (paired with `expo-audio`)
+- NativeWind for utility-first styling
+- React Navigation (bottom tabs + stack) for routing
+- Axios for Kick API integration
+- AsyncStorage for persisting preferences and follow lists
+- WebSocket chat pipeline with optional 7TV emote enrichment
 
-## Dependencies
-- expo-av (for video playback)
-- axios (for API requests)
-- @react-navigation/native (already installed)
-- @react-navigation/stack (already installed)
-- nativewind (already installed)
+## Application Architecture
 
-## API Endpoints
-- Stream Info: `https://kick.com/api/v2/channels/{username}`
+### Navigation Layout
+- **Bottom tab navigator**: Home, Followed, Search, Settings
+- **Stack screen**: `StreamScreen` is pushed from discovery tabs to present playback and chat
 
-## Project Structure
-1. Core Features
-   - Username input interface
-   - API integration for stream data
-   - Video player implementation
-   - Stream information display
+### Screens (`src/screens`)
+- `HomeScreen.tsx` – Displays live channels sorted by viewer count with pull-to-refresh and infinite scroll.
+- `FollowedScreen.tsx` – Lists saved channels, highlighting those that are currently live.
+- `SearchScreen.tsx` – Typesense-powered channel search with live status indicators.
+- `StreamScreen.tsx` – Hosts the video player (`expo-video`), chat, follow controls, and orientation handling.
+- `SettingsScreen.tsx` – Theme toggles, Kick OAuth management, and chat preference switches (including 7TV emotes).
 
-2. Data Model (from API)
-   - Channel information
-   - Stream details
-   - Playback URL
-   - User details
+### Components (`src/components`)
+- `ChatView.tsx` – Connects to Kick's WebSocket chat gateway, manages heartbeats/reconnects, and renders parsed message parts. When the "7TV emotes" preference is enabled it fetches global and channel-specific sets from the 7TV REST API and swaps matching tokens for inline images.
 
-3. Project Files Structure
-   ```
-   src/
-   ├── components/
-   │   ├── StreamPlayer.tsx
-   │   └── StreamInfo.tsx
-   ├── screens/
-   │   ├── HomeScreen.tsx (✓)
-   │   └── StreamScreen.tsx (✓)
-   ├── services/
-   │   └── api.ts (✓)
-   └── types/
-       └── index.ts (✓)
-   ```
+### Context Providers (`src/context`)
+- `AuthContext.tsx` – Wraps Expo AuthSession to authenticate against Kick through an OAuth proxy. Persists tokens, refreshes silently, and exposes `signIn`/`signOut` plus the user profile.
+- `PreferencesContext.tsx` – Stores chat preferences (including the 7TV toggle) and other user choices via AsyncStorage.
+- `FollowContext.tsx` – Maintains the followed channel list, synchronized with AsyncStorage and Kick API responses.
+- `ThemeContext.tsx` – Manages the light/dark theme palette and offers a toggle consumed by screens/components.
 
-## Implementation Steps
-1. [x] Initial project setup with Expo
-2. [x] Install additional dependencies
-3. [x] Create project structure
-4. [x] Create basic UI components
-5. [x] Implement API integration
-6. [x] Add video player functionality
-7. [ ] Test and debug
-8. [ ] Style and polish UI
+### Services (`src/services`)
+- `api.ts` – Shared HTTP client with Kick REST endpoints for channel and stream information.
+- `search.ts` – Typesense search client abstractions used by the search screen.
 
-## Progress Tracking
+## Data Flow Summary
+1. Screens access shared state by consuming the Context providers registered near the root of `App.tsx`.
+2. Stream playback uses `expo-video` with Kick-provided HLS URLs; background audio and PiP support are coordinated through Expo's AV APIs.
+3. Chat establishes a WebSocket session using the active channel ID. Incoming messages are parsed into rich segments, optionally decorated with 7TV emote URLs pulled from the REST API.
+4. Authenticated requests rely on the access token issued by the OAuth proxy. Refresh tokens are exchanged via the proxy's `/refresh` endpoint when nearing expiration.
 
-### Completed Tasks
-- Initial documentation created
-- Basic Expo project setup with navigation
-- Created project structure
-- Implemented HomeScreen with username input
-- Implemented StreamScreen with video player
-- Added API integration for fetching stream data
-- Set up navigation flow
+## Environment & Configuration
+Configure the following environment variables (via `.env` or your secrets manager) before running the app:
 
-### In Progress
-- Testing and debugging
-- UI polish and styling improvements
+| Variable | Description |
+| -------- | ----------- |
+| `EXPO_PUBLIC_TYPESENSE_SEARCH_KEY` | Read-only Typesense search key for local/dev builds. Required for search results. |
+| `EXPO_PUBLIC_KICK_CLIENT_ID` | Kick OAuth client identifier used during Expo AuthSession login. |
+| `EXPO_PUBLIC_KICK_AUTHORIZE_URL` | Optional override for the Kick authorization endpoint (defaults to `https://kick.com/oauth/authorize`). |
+| `EXPO_PUBLIC_KICK_SCOPE` | Space-delimited scopes requested during sign-in (defaults to `user:read`). |
+| `EXPO_PUBLIC_KICK_PROXY_URL` | Base URL for the OAuth proxy that exchanges authorization codes and refresh tokens. Must expose `/token` and `/refresh` endpoints mirroring Kick's OAuth responses. |
 
-### Pending Tasks
-- Test on different devices
-- Add error handling improvements
-- Add loading states and animations
-- Polish UI/UX
+Example configuration:
 
-## Notes
-- Example API response stored in example.json
-- Need to handle video playback using m3u8 stream URL
-- Must consider error handling for invalid usernames or offline streams
-- Using TypeScript for better type safety and development experience
+```bash
+EXPO_PUBLIC_TYPESENSE_SEARCH_KEY=your_typesense_key
+EXPO_PUBLIC_KICK_CLIENT_ID=your_kick_client_id
+EXPO_PUBLIC_KICK_SCOPE="user:read chat:write"
+EXPO_PUBLIC_KICK_PROXY_URL=https://your-proxy.example.com
+```
 
-## Usage
-1. Start the app
-2. Enter a Kick.com username in the input field
-3. Press "Watch Stream" to view the live stream
-4. The stream will automatically play if the channel is live
+### OAuth Proxy Requirements
+- The proxy should forward authorization codes to `https://kick.com/api/v1/oauth/token` and return `{ access_token, refresh_token, expires_in, token_type, profile }`.
+- `/refresh` must accept `{ "refreshToken": "..." }` and return the same structure so the app can silently renew sessions.
+- Any failures should propagate descriptive errors so `AuthContext` can surface them to the UI.
 
-## Known Issues
-- Need to test video playback on different devices
-- Need to verify error handling for all edge cases
+### 7TV Integration Notes
+- No additional environment variables are required, but outbound HTTPS access to `https://7tv.io/v3` is necessary.
+- The 7TV toggle in Settings enables fetching both the global and channel sets; ensure your network policy allows these requests.
 
-## Manual QA
-- **Refresh failure preserves login error:** With a signed-in session, force the `/refresh` proxy endpoint to respond with an error (for example by stopping the proxy or returning HTTP 500). Trigger a token refresh (e.g., wait until expiry or invoke the refresh function). After the refresh failure, confirm that the Login screen displays the error message explaining the failure while the user is signed out.
-- **Kick OAuth happy path:** Start a fresh sign-in, observe the generated Kick consent screen, approve access, and confirm that the app signs in successfully without error once Kick redirects back.
-- **Kick OAuth state mismatch aborts sign-in:** Initiate sign-in, and before completing the Kick flow manually tamper with the returned `state` (for example by intercepting the redirect URI or modifying the response in the proxy). Confirm that sign-in is aborted, no tokens are stored, and the app displays an authentication error.
+## Setup & Running Locally
+1. Install dependencies: `npm install`
+2. Start the Expo dev server: `npm start`
+3. Launch on device or simulator via Expo Go, iOS Simulator (`i`), or Android emulator (`a`).
+4. Confirm your OAuth proxy is reachable from the device/emulator and that the required env vars are loaded (Expo will warn if missing).
+
+## Manual QA Scenarios
+- **Kick OAuth happy path** – Sign in through the OAuth proxy, approve the Kick consent screen, and verify the profile appears under Settings → Account.
+- **Refresh failure messaging** – Simulate a proxy error on `/refresh` and ensure the app surfaces the error while returning to the signed-out state.
+- **Chat fallback** – Disable 7TV emotes in Settings and confirm chat messages render instantly without attempting 7TV fetches; re-enable to see emotes populate for supported tokens.
+- **Playback regression** – Validate PiP and background audio after switching away from the app to ensure the `expo-video` player remains active.
